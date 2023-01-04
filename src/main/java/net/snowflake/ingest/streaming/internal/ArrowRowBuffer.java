@@ -62,6 +62,7 @@ class ArrowRowBuffer extends AbstractRowBuffer<VectorSchemaRoot> {
   private static final String COLUMN_PHYSICAL_TYPE = "physicalType";
   private static final String COLUMN_LOGICAL_TYPE = "logicalType";
   private static final String COLUMN_NULLABLE = "nullable";
+  private static final String COLUMN_DEFAULT_VAL = "defaultVal";
   static final String COLUMN_SCALE = "scale";
   private static final String COLUMN_PRECISION = "precision";
   private static final String COLUMN_CHAR_LENGTH = "charLength";
@@ -200,6 +201,9 @@ class ArrowRowBuffer extends AbstractRowBuffer<VectorSchemaRoot> {
     }
     if (column.getLength() != null) {
       metadata.put(COLUMN_CHAR_LENGTH, column.getLength().toString());
+    }
+    if (column.getDefaultVal() != null) {
+      metadata.put(COLUMN_DEFAULT_VAL, column.getDefaultVal());
     }
 
     // Handle differently depends on the column logical and physical types

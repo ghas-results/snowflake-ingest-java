@@ -21,6 +21,8 @@ class ColumnMetadata {
   private Integer length;
   private boolean nullable;
   private String collation;
+  private String defaultVal;
+  private Boolean isSequence;
 
   @JsonProperty("name")
   void setName(String name) {
@@ -117,6 +119,24 @@ class ColumnMetadata {
     return internalName;
   }
 
+  @JsonProperty("defaultVal")
+  public void setDefaultVal(String defaultVal) {
+    this.defaultVal = defaultVal;
+  }
+
+  public String getDefaultVal() {
+    return this.defaultVal;
+  }
+
+  @JsonProperty("isSequence")
+  public void setIsSequence(Boolean isSequence) {
+    this.isSequence = isSequence;
+  }
+
+  public Boolean getIsSequence() {
+    return this.isSequence;
+  }
+
   @Override
   public String toString() {
     Map<String, Object> map = new HashMap<>();
@@ -129,6 +149,8 @@ class ColumnMetadata {
     map.put("byte_length", this.byteLength);
     map.put("length", this.length);
     map.put("nullable", this.nullable);
+    map.put("defaultVal", this.defaultVal);
+    map.put("isSequence", this.isSequence);
     return map.toString();
   }
 }
