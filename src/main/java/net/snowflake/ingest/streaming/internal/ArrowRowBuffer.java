@@ -44,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
+import org.apache.commons.text.StringEscapeUtils;
 
 /**
  * The buffer in the Streaming Ingest channel that holds the un-flushed rows, these rows will be
@@ -63,6 +64,8 @@ class ArrowRowBuffer extends AbstractRowBuffer<VectorSchemaRoot> {
   private static final String COLUMN_LOGICAL_TYPE = "logicalType";
   private static final String COLUMN_NULLABLE = "nullable";
   private static final String COLUMN_DEFAULT_VAL = "defaultVal";
+  private static final String COLUMN_DEFAULT_EXPRESSION_TYPE = "defaultExpressionType";
+  private static final String COLUMN_IS_SEQUENCE = "isSequence";
   static final String COLUMN_SCALE = "scale";
   private static final String COLUMN_PRECISION = "precision";
   private static final String COLUMN_CHAR_LENGTH = "charLength";
@@ -105,6 +108,10 @@ class ArrowRowBuffer extends AbstractRowBuffer<VectorSchemaRoot> {
       FieldVector vector = field.createVector(this.allocator);
       if (!field.isNullable()) {
         addNonNullableFieldName(field.getName());
+      }
+      if (field.getMetadata().get(COLUMN_DEFAULT_VAL) != null &&
+              ColumnDefaultExpressionType.fromString(field.getMetadata().get(COLUMN_DEFAULT_EXPRESSION_TYPE)) == ColumnDefaultExpressionType.CONSTANT){
+        addDefaultValFieldName(field.getName());
       }
       this.fields.put(column.getInternalName(), field);
       vectors.add(vector);
@@ -205,6 +212,14 @@ class ArrowRowBuffer extends AbstractRowBuffer<VectorSchemaRoot> {
     if (column.getDefaultVal() != null) {
       metadata.put(COLUMN_DEFAULT_VAL, column.getDefaultVal());
     }
+    if (column.getDefaulExpressionType() != null) {
+      metadata.put(COLUMN_DEFAULT_EXPRESSION_TYPE, column.getDefaulExpressionType().toString());
+
+    }
+    if (column.getIsSequence()) {
+      metadata.put(COLUMN_IS_SEQUENCE, String.valueOf(column.getIsSequence()));
+    }
+    System.out.println(column.getName() + "" + metadata);
 
     // Handle differently depends on the column logical and physical types
     switch (logicalType) {
@@ -447,7 +462,13 @@ class ArrowRowBuffer extends AbstractRowBuffer<VectorSchemaRoot> {
     for (Map.Entry<String, Object> entry : row.entrySet()) {
       rowBufferSize += 0.125; // 1/8 for null value bitmap
       String columnName = LiteralQuoteUtils.unquoteColumnName(entry.getKey());
-      Object value = entry.getValue();
+
+      final Object value;
+      if (entry.getValue() != null){
+        value = entry.getValue();
+      }else {
+        value = this.fields.get(columnName).getMetadata().get(COLUMN_DEFAULT_VAL);
+      }
       Field field = this.fields.get(columnName);
       Utils.assertNotNull("Arrow column field", field);
       FieldVector vector = sourceVectors.getVector(field);
@@ -768,11 +789,15 @@ class ArrowRowBuffer extends AbstractRowBuffer<VectorSchemaRoot> {
 
     // Insert nulls to the columns that doesn't show up in the input
     for (String columnName : Sets.difference(this.fields.keySet(), inputColumnNames)) {
-      rowBufferSize += 0.125; // 1/8 for null value bitmap
-      insertNull(
-          sourceVectors.getVector(this.fields.get(columnName)),
-          statsMap.get(columnName),
-          curRowIndex);
+      if(Boolean.parseBoolean(this.fields.get(columnName).getMetadata().get(COLUMN_IS_SEQUENCE))){
+        // skip column if sequence
+      } else {
+        rowBufferSize += 0.125; // 1/8 for null value bitmap
+        insertNull(
+                sourceVectors.getVector(this.fields.get(columnName)),
+                statsMap.get(columnName),
+                curRowIndex);
+      }
     }
 
     return rowBufferSize;

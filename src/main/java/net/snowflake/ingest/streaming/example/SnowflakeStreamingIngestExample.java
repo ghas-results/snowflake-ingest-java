@@ -50,7 +50,7 @@ public class SnowflakeStreamingIngestExample {
           OpenChannelRequest.builder("MY_CHANNEL")
               .setDBName("MY_DATABASE")
               .setSchemaName("MY_SCHEMA")
-              .setTableName("MY_TABLE")
+              .setTableName("DEFAULT_TABLE")
               .setOnErrorOption(
                   OpenChannelRequest.OnErrorOption.CONTINUE) // Another ON_ERROR option is ABORT
               .build();
@@ -59,7 +59,7 @@ public class SnowflakeStreamingIngestExample {
       SnowflakeStreamingIngestChannel channel1 = client.openChannel(request1);
 
       // Insert rows into the channel (Using insertRows API)
-      final int totalRowsInTable = 1000;
+      final int totalRowsInTable = 10;
       for (int val = 0; val < totalRowsInTable; val++) {
         Map<String, Object> row = new HashMap<>();
 
@@ -88,6 +88,7 @@ public class SnowflakeStreamingIngestExample {
           System.out.println("SUCCESSFULLY inserted " + totalRowsInTable + " rows");
           break;
         }
+        Thread.sleep(1000L);
         retryCount++;
       } while (retryCount < maxRetries);
 

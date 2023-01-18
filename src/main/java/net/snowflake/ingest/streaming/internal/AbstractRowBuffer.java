@@ -15,6 +15,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.annotation.JsonValue;
 import net.snowflake.ingest.streaming.InsertValidationResponse;
 import net.snowflake.ingest.streaming.OpenChannelRequest;
 import net.snowflake.ingest.utils.Constants;
@@ -134,6 +136,35 @@ abstract class AbstractRowBuffer<T> implements RowBuffer<T> {
     }
   }
 
+
+  // Snowflake default constraint type
+  enum ColumnDefaultExpressionType {
+    UNKNOWN(0),
+    CONSTANT(1),
+    SEQUENCE(2),
+    EXPRESSION(3);
+
+    private final int type;
+    private static final ColumnDefaultExpressionType[] values = values();
+
+    ColumnDefaultExpressionType(int type) {
+      this.type = type;
+    }
+
+    @JsonValue
+    public int toInt() {
+      return type;
+    }
+
+    public static ColumnDefaultExpressionType fromString(String str) {
+      int i = Integer.parseInt(str);
+      if (i >= 0 && i < values.length) {
+        return values[i];
+      } else {
+        return UNKNOWN;
+      }
+    }
+  }
   // Map the column name to the stats
   @VisibleForTesting Map<String, RowBufferStats> statsMap;
 
@@ -151,6 +182,9 @@ abstract class AbstractRowBuffer<T> implements RowBuffer<T> {
 
   // Names of non-nullable columns
   private final Set<String> nonNullableFieldNames;
+
+  // Names of non-nullable columns
+  private final Set<String> defaultValFieldNames;
 
   // buffer's channel fully qualified name with database, schema and table
   final String channelFullyQualifiedName;
@@ -179,6 +213,7 @@ abstract class AbstractRowBuffer<T> implements RowBuffer<T> {
     this.channelFullyQualifiedName = fullyQualifiedChannelName;
     this.allocator = allocator;
     this.nonNullableFieldNames = new HashSet<>();
+    this.defaultValFieldNames = new HashSet<>();
     this.flushLock = new ReentrantLock();
     this.rowCount = 0;
     this.bufferSize = 0F;
@@ -189,13 +224,23 @@ abstract class AbstractRowBuffer<T> implements RowBuffer<T> {
   }
 
   /**
-   * Adds non-nullable filed name.
+   * Adds non-nullable field name.
    *
    * @param nonNullableFieldName non-nullable filed name
    */
   void addNonNullableFieldName(String nonNullableFieldName) {
     nonNullableFieldNames.add(nonNullableFieldName);
   }
+
+  /**
+   * Adds default valued field name.
+   *
+   * @param defaultValFieldName filed name with default value
+   */
+  void addDefaultValFieldName(String defaultValFieldName) {
+    defaultValFieldNames.add(defaultValFieldName);
+  }
+
 
   /**
    * Get the current buffer size
@@ -219,6 +264,14 @@ abstract class AbstractRowBuffer<T> implements RowBuffer<T> {
    */
   Set<String> verifyInputColumns(
       Map<String, Object> row, InsertValidationResponse.InsertError error) {
+
+    // Add columns with default values to the inputCol list
+    for (String columnName: this.defaultValFieldNames){
+      if (!row.containsKey(columnName)) {
+        row.put(columnName, null);
+      }
+    }
+
     Map<String, String> inputColNamesMap =
         row.keySet().stream()
             .collect(Collectors.toMap(LiteralQuoteUtils::unquoteColumnName, value -> value));

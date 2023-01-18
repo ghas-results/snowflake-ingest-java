@@ -22,7 +22,8 @@ class ColumnMetadata {
   private boolean nullable;
   private String collation;
   private String defaultVal;
-  private Boolean isSequence;
+  private Integer defaultExpressionType;
+  private boolean isSequence;
 
   @JsonProperty("name")
   void setName(String name) {
@@ -128,13 +129,22 @@ class ColumnMetadata {
     return this.defaultVal;
   }
 
-  @JsonProperty("isSequence")
-  public void setIsSequence(Boolean isSequence) {
-    this.isSequence = isSequence;
+  @JsonProperty("defaultExpressionType")
+  public Integer getDefaulExpressionType() {
+    return defaultExpressionType;
   }
 
-  public Boolean getIsSequence() {
-    return this.isSequence;
+  public void setDefaultExpressionType(Integer defaultExpressionType) {
+    this.defaultExpressionType = defaultExpressionType;
+  }
+
+  @JsonProperty("isSequence")
+  public boolean getIsSequence() {
+    return isSequence;
+  }
+
+  public void setSequence(boolean sequence) {
+    isSequence = sequence;
   }
 
   @Override
@@ -150,6 +160,7 @@ class ColumnMetadata {
     map.put("length", this.length);
     map.put("nullable", this.nullable);
     map.put("defaultVal", this.defaultVal);
+    map.put("defaultExpressionType", this.defaultExpressionType);
     map.put("isSequence", this.isSequence);
     return map.toString();
   }
